@@ -35,6 +35,74 @@
   <a href="https://github.com/marimo-team/marimo/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/marimo"/></a>
 </p>
 
+---
+
+## Using This Fork
+
+This repository is a fork of the official marimo project with the following enhancements:
+
+- Display of cell numbers
+- Include cell outputs when exporting to Markdown
+
+These features are currently under development.
+
+To use this fork in your project, follow these steps:
+
+1. Clone the repository
+
+```bash
+git clone -b feature/personal-enhancement --depth 1 https://github.com/amano-takahisa/marimo.git
+```
+
+2. Build the project
+
+Navigate to the cloned repository and build the necessary files:
+
+```bash
+pixi shell
+make fe && make py
+```
+
+3. Add the custom marimo to your project
+
+Add the following to your `pixi.toml`:
+
+```pixi.toml
+[pypi-dependencies]
+marimo = { path = "/path/to/amano-takahisa/marimo" }
+```
+
+Note: Steps 1 and 2 only need to be performed once.
+
+## Development Notes
+
+To sync with the upstream repository:
+
+```bash
+git remote add upstream https://github.com/marimo-team/marimo.git
+git switch main
+
+git fetch upstream
+
+git rebase upstream/main
+
+git push origin main
+
+# update local branches
+git switch feature/cell-number-display
+git rebase main
+git push --force-with-lease --force-if-includes
+git switch feature/markdown-cell-outputs
+git rebase main
+git push --force-with-lease --force-if-includes
+git switch feature/personal-enhancements
+git rebase main
+git merge feature/cell-number-display
+git merge feature/markdown-cell-outputs
+git push --force-with-lease --force-if-includes
+```
+---
+
 **marimo** is a reactive Python notebook: run a cell or interact with a UI
 element, and marimo automatically runs dependent cells (or <a href="#expensive-notebooks">marks them as stale</a>), keeping code and outputs
 consistent. marimo notebooks are stored as pure Python (with first-class SQL support), executable as scripts,
