@@ -838,7 +838,7 @@ const CellNumber = memo((props: { cellId: CellId }) => {
 
   return (
     <div
-      className="absolute left-[-80px] top-0 h-full flex items-start pt-3 z-10 print:hidden"
+      className="absolute right-full mr-[8px] top-0 h-full flex items-start justify-end pt-3 z-10 print:hidden"
       aria-label={`cell-${cellIndex}`}
     >
       <span className="text-xs text-muted-foreground font-mono select-none">
