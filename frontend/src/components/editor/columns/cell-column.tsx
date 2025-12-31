@@ -94,7 +94,7 @@ const ResizableComponent = ({
       {renderResizeHandler(handleRefs.left)}
       <div
         ref={resizableDivRef}
-        className="flex flex-col gap-5 box-content min-h-[100px] px-11 pt-3 pb-6 min-w-[500px] z-1"
+        className="flex flex-col gap-5 box-content min-h-[100px] px-16 pt-3 pb-6 min-w-[500px] z-1"
         style={style}
       >
         {children}

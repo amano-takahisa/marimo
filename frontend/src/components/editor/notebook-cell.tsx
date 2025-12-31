@@ -45,6 +45,7 @@ import {
   useCellActions,
   useCellData,
   useCellHandle,
+  useCellIds,
   useCellRuntime,
 } from "../../core/cells/cells";
 import { type CellId, SETUP_CELL_ID } from "../../core/cells/ids";
@@ -346,6 +347,7 @@ const ReadonlyCellComponent = forwardRef(
         className={className}
         {...cellDomProps(cellId, cellData.name)}
       >
+        <CellNumber cellId={cellId} />
         <OutputArea
           allowExpand={false}
           forceExpand={true}
@@ -593,6 +595,7 @@ const EditableCellComponent = ({
             ref={cellContainerRef}
             {...cellDomProps(cellId, cellData.name)}
           >
+            <CellNumber cellId={cellId} />
             <CellLeftSideActions cellId={cellId} actions={actions} />
             {cellOutput === "above" && (outputArea || emptyMarkdownPlaceholder)}
             <div
@@ -823,6 +826,29 @@ const CellRightSideActions = memo(
 );
 
 CellRightSideActions.displayName = "CellRightSideActions";
+
+const CellNumber = memo((props: { cellId: CellId }) => {
+  const cellIds = useCellIds();
+  const cellIndex = cellIds.inOrderIds.indexOf(props.cellId);
+
+  // Don't show cell number for invalid indices
+  if (cellIndex === -1) {
+    return null;
+  }
+
+  return (
+    <div
+      className="absolute right-full mr-[8px] top-0 h-full flex items-start justify-end pt-3 z-10 print:hidden"
+      aria-label={`cell-${cellIndex}`}
+    >
+      <span className="text-xs text-muted-foreground font-mono select-none">
+        cell-{cellIndex}
+      </span>
+    </div>
+  );
+});
+
+CellNumber.displayName = "CellNumber";
 
 const CellLeftSideActions = memo(
   (props: {
