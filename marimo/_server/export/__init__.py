@@ -4,7 +4,9 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
-from dataclasses import dataclass, replace
+import json
+from dataclasses import dataclass, field, replace
+from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Optional, cast
 
 from marimo import _loggers
@@ -51,6 +53,21 @@ class ExportResult:
     did_error: bool
 
 
+@dataclass
+class ExternalFile:
+    """Represents a file to be written alongside the markdown."""
+
+    relative_path: str  # e.g., "images/notebook_cell_0_abc12345.png"
+    content: bytes
+
+
+@dataclass
+class ExportResultWithFiles(ExportResult):
+    """Export result that may include external files."""
+
+    external_files: list[ExternalFile] = field(default_factory=list)
+
+
 def _as_ir(path: MarimoPath) -> NotebookSerialization:
     if path.is_python():
         py_contents = path.read_text(encoding="utf-8")
@@ -80,6 +97,78 @@ def export_as_md(path: MarimoPath) -> ExportResult:
         contents=MarimoConvert.from_ir(ir).to_markdown(),
         download_filename=get_download_filename(path.short_name, "md"),
         did_error=False,
+    )
+
+
+def export_as_md_with_outputs(
+    path: MarimoPath,
+    output_path: Optional[Path] = None,
+) -> ExportResultWithFiles:
+    """Export a marimo notebook as markdown with cell outputs.
+
+    Args:
+        path: Path to the marimo notebook.
+        output_path: Path where the markdown file will be saved.
+            If provided, images will be saved as external files.
+            If None, images will be embedded as base64 data URLs.
+
+    Returns:
+        ExportResultWithFiles containing the markdown content and any
+        external files (images) to be written.
+    """
+    from marimo._convert.markdown import convert_from_ir_to_markdown_with_outputs
+    from marimo._schemas.session import NotebookSessionV1
+    from marimo._session.state.serialize import get_session_cache_file
+
+    ir = _as_ir(path)
+
+    # Try to load session cache
+    cache_file = get_session_cache_file(Path(path.absolute_name))
+    session: Optional[NotebookSessionV1] = None
+
+    if cache_file.exists():
+        try:
+            cache_content = cache_file.read_text(encoding="utf-8")
+            session_dict = json.loads(cache_content)
+            session = NotebookSessionV1(**session_dict)
+            LOGGER.debug(f"Loaded session cache from {cache_file}")
+        except Exception as e:
+            LOGGER.warning(f"Failed to load session cache: {e}")
+    else:
+        LOGGER.warning(
+            f"No session cache found at {cache_file}. "
+            "Run the notebook first to generate outputs."
+        )
+
+    # Build code_hash to output mapping from session
+    outputs_by_hash: dict[str, dict] = {}
+    if session:
+        for cell in session["cells"]:
+            code_hash = cell.get("code_hash")
+            if code_hash:
+                outputs_by_hash[code_hash] = {
+                    "outputs": cell.get("outputs", []),
+                    "console": cell.get("console", []),
+                }
+
+    # Determine output directory for images
+    output_dir: Optional[Path] = None
+    if output_path:
+        output_dir = output_path.parent
+
+    # Generate markdown with outputs
+    markdown_content, external_files = convert_from_ir_to_markdown_with_outputs(
+        notebook=ir,
+        outputs_by_hash=outputs_by_hash,
+        output_dir=output_dir,
+        filename=path.short_name,
+    )
+
+    return ExportResultWithFiles(
+        contents=markdown_content,
+        download_filename=get_download_filename(path.short_name, "md"),
+        did_error=False,
+        external_files=external_files,
     )
 
 

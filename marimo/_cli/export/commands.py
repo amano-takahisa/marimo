@@ -293,6 +293,10 @@ Example:
 Watch for changes and regenerate the script on modification:
 
     marimo export md notebook.py -o notebook.md --watch
+
+Include cell outputs from session cache:
+
+    marimo export md notebook.py -o notebook.md --include-outputs
 """
 )
 @click.option(
@@ -327,13 +331,28 @@ Watch for changes and regenerate the script on modification:
     default=False,
     help="Force overwrite of the output file if it already exists.",
 )
+@click.option(
+    "--include-outputs/--no-include-outputs",
+    default=False,
+    show_default=True,
+    type=bool,
+    help=(
+        "Include cell outputs from the session cache in the markdown export. "
+        "Images will be saved as external files in an 'images' directory."
+    ),
+)
 @click.argument(
     "name",
     required=True,
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
 )
 def md(
-    name: str, output: Path, watch: bool, sandbox: Optional[bool], force: bool
+    name: str,
+    output: Path,
+    watch: bool,
+    sandbox: Optional[bool],
+    force: bool,
+    include_outputs: bool,
 ) -> None:
     """
     Export a marimo notebook as a code fenced markdown document.
@@ -352,8 +371,23 @@ def md(
         run_in_sandbox(sys.argv[1:], name=name)
         return
 
-    def export_callback(file_path: MarimoPath) -> ExportResult:
-        return export_as_md(file_path)
+    if include_outputs:
+        from marimo._server.export import export_as_md_with_outputs
+
+        def export_callback(file_path: MarimoPath) -> ExportResult:
+            result = export_as_md_with_outputs(file_path, output)
+            # Write external files (images) if output directory is specified
+            if output is not None and result.external_files:
+                output_dir = output.parent
+                for ext_file in result.external_files:
+                    file_path_out = output_dir / ext_file.relative_path
+                    file_path_out.parent.mkdir(parents=True, exist_ok=True)
+                    file_path_out.write_bytes(ext_file.content)
+            return result
+    else:
+
+        def export_callback(file_path: MarimoPath) -> ExportResult:
+            return export_as_md(file_path)
 
     return watch_and_export(
         MarimoPath(name), output, watch, export_callback, force
